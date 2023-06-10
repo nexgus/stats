@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// Return a slice with 3 float32 representing 1-min, 5-min, and 15-min average CPU/system loading.
+// In fact, in Linux, this is more close to system loading.
 func GetAvgLoad() ([]float32, error) {
 	content, err := ioutil.ReadFile("/proc/loadavg")
 	if err != nil {
@@ -32,6 +34,13 @@ func GetAvgLoad() ([]float32, error) {
 	return loads, nil
 }
 
+// Returns the CPU information in a slice.
+// The elements in the slice are:
+//  0. Model string.
+//  1. Total logical CPU count in integer.
+//  2. Physical CPU count in integer.
+//  3. Core count per physical CPU.
+//  4. Thread count per core.
 func GetInfo() ([]any, error) {
 	fp, err := os.Open("/proc/cpuinfo")
 	if err != nil {
@@ -88,6 +97,9 @@ func GetInfo() ([]any, error) {
 	return []any{model, cpus, sockets, cores, threads}, nil
 }
 
+// Returns the CPU usage.
+// The first one is aggregated. Starts from the second one, it is the usage of
+// each single CPU.
 func GetUsage(duration time.Duration) ([]float32, error) {
 	cpus_0, err := ReadCpuTimes()
 	if err != nil {
@@ -124,6 +136,7 @@ func GetUsage(duration time.Duration) ([]float32, error) {
 	return usages, nil
 }
 
+// Read /proc/stat and returns the values of each line starts with "cpu".
 func ReadCpuTimes() ([][]float32, error) {
 	fp, err := os.Open("/proc/stat")
 	if err != nil {
