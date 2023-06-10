@@ -9,6 +9,14 @@ import (
 )
 
 func main() {
+	if info, err := cpu.GetInfo(); err != nil {
+		log.Fatal(err)
+	} else {
+		fmt.Printf("CPU(s): %d\n", info[1])
+		fmt.Printf("Model:  %s (%dS/%dC/%dT)\n",
+			info[0], info[2], info[3], info[4])
+	}
+
 	if usages, err := cpu.GetUsage(100 * time.Millisecond); err != nil {
 		log.Fatal(err)
 	} else {

@@ -10,6 +10,84 @@ import (
 	"time"
 )
 
+func GetAvgLoad() ([]float32, error) {
+	content, err := ioutil.ReadFile("/proc/loadavg")
+	if err != nil {
+		return nil, err
+	}
+
+	var loads []float32
+	for idx, number := range strings.Fields(string(content)) {
+		load, err := strconv.ParseFloat(number, 32)
+		if err != nil {
+			return nil, err
+		}
+		loads = append(loads, float32(load))
+
+		if idx == 2 {
+			break
+		}
+	}
+
+	return loads, nil
+}
+
+func GetInfo() ([]any, error) {
+	fp, err := os.Open("/proc/cpuinfo")
+	if err != nil {
+		return nil, err
+	}
+	defer fp.Close()
+
+	var physical_id, model string
+	var siblings int
+	var cpus int    // cpu count
+	var sockets int // physical cpu count
+	var cores int   // core count per physical cpu
+	var threads int // thread count per core
+	scanner := bufio.NewScanner(fp)
+	for scanner.Scan() {
+		line := scanner.Text()
+		splits := strings.Split(line, ":")
+		if len(splits) < 2 {
+			continue
+		}
+		key := strings.Trim(splits[0], " \t\n")
+		val := strings.Trim(strings.Join(splits[1:], ":"), " \t\n")
+
+		switch key {
+		case "processor":
+			cpus, _ = strconv.Atoi(val)
+		case "model name":
+			if len(model) == 0 {
+				model = val
+			}
+		case "physical id":
+			if physical_id != val {
+				sockets, _ = strconv.Atoi(val)
+				physical_id = val
+			}
+		case "cpu cores":
+			if cores == 0 {
+				cores, _ = strconv.Atoi(val)
+			}
+		case "siblings":
+			if siblings == 0 {
+				siblings, _ = strconv.Atoi(val)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	cpus += 1
+	sockets += 1
+	threads = siblings / cores
+
+	return []any{model, cpus, sockets, cores, threads}, nil
+}
+
 func GetUsage(duration time.Duration) ([]float32, error) {
 	cpus_0, err := ReadCpuTimes()
 	if err != nil {
@@ -44,28 +122,6 @@ func GetUsage(duration time.Duration) ([]float32, error) {
 	}
 
 	return usages, nil
-}
-
-func GetAvgLoad() ([]float32, error) {
-	content, err := ioutil.ReadFile("/proc/loadavg")
-	if err != nil {
-		return nil, err
-	}
-
-	var loads []float32
-	for idx, number := range strings.Fields(string(content)) {
-		load, err := strconv.ParseFloat(number, 32)
-		if err != nil {
-			return nil, err
-		}
-		loads = append(loads, float32(load))
-
-		if idx == 2 {
-			break
-		}
-	}
-
-	return loads, nil
 }
 
 func ReadCpuTimes() ([][]float32, error) {
