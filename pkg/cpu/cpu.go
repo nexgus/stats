@@ -3,21 +3,22 @@ package cpu
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func Usage(duration time.Duration) ([]float32, error) {
-	cpus_0, err := GetCpuTimes()
+func GetUsage(duration time.Duration) ([]float32, error) {
+	cpus_0, err := ReadCpuTimes()
 	if err != nil {
 		return nil, fmt.Errorf("start: %v", err)
 	}
 
 	time.Sleep(duration)
 
-	cpus_1, err := GetCpuTimes()
+	cpus_1, err := ReadCpuTimes()
 	if err != nil {
 		return nil, fmt.Errorf("stop: %v", err)
 	}
@@ -45,7 +46,29 @@ func Usage(duration time.Duration) ([]float32, error) {
 	return usages, nil
 }
 
-func GetCpuTimes() ([][]float32, error) {
+func GetAvgLoad() ([]float32, error) {
+	content, err := ioutil.ReadFile("/proc/loadavg")
+	if err != nil {
+		return nil, err
+	}
+
+	var loads []float32
+	for idx, number := range strings.Fields(string(content)) {
+		load, err := strconv.ParseFloat(number, 32)
+		if err != nil {
+			return nil, err
+		}
+		loads = append(loads, float32(load))
+
+		if idx == 2 {
+			break
+		}
+	}
+
+	return loads, nil
+}
+
+func ReadCpuTimes() ([][]float32, error) {
 	fp, err := os.Open("/proc/stat")
 	if err != nil {
 		return nil, err
